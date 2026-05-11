@@ -122,7 +122,7 @@ If neither `YUKI_API_KEY` nor a keys file is found at startup, the server logs a
 
 ---
 
-## Available tools (29)
+## Available tools (30)
 
 ### Administrations
 
@@ -149,6 +149,7 @@ If neither `YUKI_API_KEY` nor a keys file is found at startup, the server logs a
 
 | Tool | Key parameters | Description |
 |------|----------------|-------------|
+| `get_missing_invoices` | — | Retrieve bank payments that still need a matching purchase invoice — equivalent to "Postbus → Ontbrekende facturen" in the Yuki web interface. |
 | `get_purchase_invoices` | `dateOutstanding?`, `sortOrder?`, `includeBankTransactions?` | Retrieve outstanding (unpaid) purchase invoices. |
 | `process_purchase_invoice` | `date`, `invoiceAmount`, `invoiceVatAmount`, `contact`, `lines` | Book an incoming purchase invoice. Accepts an optional PDF as base64. |
 
@@ -252,7 +253,7 @@ src/
     ├── accounting.ts         # get_gl_accounts, get_gl_accounts_fiscal, get_net_revenue
     ├── accounting-info.ts    # get_gl_account_scheme, get_period_table,
     │                         # get_gl_transactions_detailed, get_transaction_document,
-    │                         # get_start_balances
+    │                         # get_start_balances, get_missing_invoices
     ├── documents.ts          # upload_document, upload_document_from_path,
     │                         # get_document_folders, list_documents, search_documents,
     │                         # get_document, download_document, get_cost_categories

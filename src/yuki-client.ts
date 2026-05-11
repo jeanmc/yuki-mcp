@@ -26,9 +26,10 @@ const ALWAYS_ARRAY_TAGS = new Set([
   // GL accounts
   'GLAccount',
   'Account',
-  // Debtor / creditor outstanding items
+  // Debtor / creditor outstanding items (Accounting.asmx)
   'DebtorItem',
   'CreditorItem',
+  'Item',
   // Fiscal periods (AccountingInfo.asmx)
   'Period',
   'AdministrationPeriod',

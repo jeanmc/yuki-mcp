@@ -81,7 +81,7 @@ const yukiClient = new YukiClient(apiKey, domainId, apiKeyMap);
 
 const server = new McpServer({
   name: 'yuki-mcp',
-  version: '1.3.0',
+  version: '1.4.0',
 });
 
 // ── Read tools ────────────────────────────────────────────────────────────────
@@ -118,6 +118,6 @@ const keyInfo =
       : 'no API keys configured';
 
 process.stderr.write(
-  `[yuki-mcp] Server started — 29 tools registered. ` +
+  `[yuki-mcp] Server started — 30 tools registered. ` +
     `Domain ID: ${domainId || '(none)'} — ${keyInfo}\n`,
 );

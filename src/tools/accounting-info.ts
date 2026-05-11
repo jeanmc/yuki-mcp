@@ -312,6 +312,113 @@ export function registerAccountingInfoTools(server: McpServer, client: YukiClien
     },
   );
 
+  // ── get_missing_invoices ─────────────────────────────────────────────────────
+
+  /**
+   * get_missing_invoices
+   *
+   * Retrieve bank payments for which no purchase invoice has been delivered yet
+   * — equivalent to "Postbus → Ontbrekende facturen" / "Aan te leveren
+   * inkoopfacturen" in the Yuki web interface.
+   *
+   * How it works: uses OutstandingCreditorItems with includeBankTransactions=true
+   * and filters for items of type "Afschriftregel" (bank statement line). These
+   * are bank payments that Yuki has matched to a creditor but for which no
+   * purchase invoice document has been uploaded. The documentID on each item
+   * refers to the bank statement, not to a purchase invoice.
+   *
+   * Yuki service: Accounting.asmx · OutstandingCreditorItems
+   * Rate cost: 1 request.
+   */
+  server.registerTool(
+    'get_missing_invoices',
+    {
+      description:
+        'Retrieve bank payments that still need a matching purchase invoice — ' +
+        'equivalent to "Postbus → Ontbrekende facturen" in the Yuki web interface. ' +
+        'Returns creditor name, open amount, date, and bank description for each unmatched payment. ' +
+        'Use upload_document or process_purchase_invoice to resolve items in this list.',
+      inputSchema: {
+        administrationId: z
+          .string()
+          .optional()
+          .describe('Administration ID (GUID). Defaults to YUKI_DOMAIN_ID env var.'),
+      },
+    },
+    async ({ administrationId }) => {
+      try {
+        const adminId = administrationId ?? client.defaultDomainId;
+        if (!adminId) throw new Error('administrationId is required (or set YUKI_DOMAIN_ID env var)');
+
+        const sessionID = await client.getSessionID(adminId);
+
+        const result = await client.callSoap({
+          service: 'Accounting.asmx',
+          method: 'OutstandingCreditorItems',
+          params: {
+            sessionID,
+            administrationID: adminId,
+            includeBankTransactions: true,
+            sortOrder: 'DateDesc',
+          },
+        });
+
+        const items = normalizeList(
+          result,
+          ['OutstandingCreditorItems', 'Items', 'CreditorItems'],
+          ['Item', 'CreditorItem', 'Row'],
+        ) as Array<Record<string, unknown>>;
+
+        // Filter for bank statement lines without a matching purchase invoice.
+        // "Afschriftregel" = bank statement line; these are the missing invoices.
+        // <Type> carries an ID attribute so fast-xml-parser returns it as
+        // { "@_ID": "", "#text": "Afschriftregel" } rather than a plain string.
+        const missing = items.filter((item) => {
+          const raw = item['Type'] ?? item['type'];
+          const type =
+            raw && typeof raw === 'object'
+              ? String((raw as Record<string, unknown>)['#text'] ?? '')
+              : String(raw ?? '');
+          return type === 'Afschriftregel';
+        });
+
+        const invoices = missing.map((item) => ({
+          bankStatementDocumentId: item['DocumentID'] ?? item['documentID'] ?? null,
+          date: item['Date'] ?? item['date'] ?? null,
+          creditorName: item['Contact'] ?? item['ContactName'] ?? null,
+          creditorId: item['ContactID'] ?? item['contactID'] ?? null,
+          openAmount: item['OpenAmount'] ?? item['openAmount'] ?? null,
+          originalAmount: item['OriginalAmount'] ?? item['originalAmount'] ?? null,
+          description: item['Description'] ?? item['description'] ?? null,
+          reference: item['Reference'] ?? item['reference'] ?? null,
+          dueDate: item['DueDate'] ?? item['dueDate'] ?? null,
+        }));
+
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify(
+                {
+                  success: true,
+                  count: invoices.length,
+                  note:
+                    'Bank payments without a matching purchase invoice. ' +
+                    'Use upload_document or process_purchase_invoice to resolve each item.',
+                  missingInvoices: invoices,
+                },
+                null,
+                2,
+              ),
+            },
+          ],
+        };
+      } catch (err) {
+        return errorResponse(err);
+      }
+    },
+  );
+
   // ── get_start_balances ───────────────────────────────────────────────────────
 
   /**
