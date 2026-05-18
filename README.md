@@ -120,9 +120,23 @@ When a keys file is present, `YUKI_API_KEY` becomes optional — the file keys a
 
 If neither `YUKI_API_KEY` nor a keys file is found at startup, the server logs a warning but continues running — tools will return an error when called.
 
+### Reloading keys at runtime
+
+When a new key is generated externally — for example by a sibling MCP server that drives the Yuki Integraties UI to create a fresh API key for a new administration — the new entry only lands in `~/.yuki/api-keys.json`. By default the MCP server reads that file once at startup, so a freshly added key would require a server restart before it can be used for SOAP calls.
+
+The **`reload_keys`** tool (see [Available tools](#available-tools-31) below) avoids this: it re-reads the keys file from disk and replaces the in-memory map in place. Sessions for keys that **changed** or were **removed** are evicted from the session cache automatically; sessions for unchanged keys stay warm so subsequent calls do not pay the re-authentication cost.
+
+Typical flow for a sibling tool that has just minted a new key:
+
+```
+1. (external) write the new key to ~/.yuki/api-keys.json
+2. yuki-mcp.reload_keys()        → { added: [<adminId>], updated: [], removed: [], total: N }
+3. yuki-mcp.get_administrations  → now works for the new admin without restart
+```
+
 ---
 
-## Available tools (30)
+## Available tools (31)
 
 ### Administrations
 
@@ -130,6 +144,7 @@ If neither `YUKI_API_KEY` nor a keys file is found at startup, the server logs a
 |------|-------------|
 | `get_administrations` | List all administrations (companies) for this API key. **Run this first** to find the correct `administrationId`. |
 | `get_administration_id` | Look up an administration's GUID by its exact name. Useful when you know the name but not the GUID. |
+| `reload_keys` | Re-read the `administrationId → apiKey` JSON file from disk without restarting the server. Returns a diff of added/updated/removed IDs and invalidates affected sessions. Use after an external `create_api_key` flow. |
 
 ### Relations
 

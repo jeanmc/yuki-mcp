@@ -1,5 +1,8 @@
 import axios from 'axios';
 import { XMLParser } from 'fast-xml-parser';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 
 // Confirmed via WSDL inspection of api.yukiworks.nl
 const YUKI_BASE_URL = 'https://api.yukiworks.nl/ws/';
@@ -68,14 +71,71 @@ export interface SoapCallOptions {
   params: Record<string, SoapParamValue>;
 }
 
+// ── API key file loading ────────────────────────────────────────────────────
+//
+// Resolve which JSON file holds the administrationId → apiKey map, with the
+// same precedence the server uses at startup:
+//   1. YUKI_API_KEYS_FILE environment variable (explicit path)
+//   2. ~/.yuki/api-keys.json  (default user-level location)
+//   3. ./api-keys.json  (local fallback for development)
+//
+// Exported so both the entry point (index.ts) and the runtime reload tool
+// can share the exact same resolution logic.
+
+export interface LoadedApiKeys {
+  /** Absolute path that was read from. */
+  path: string;
+  /** Map of administrationId → apiKey. Empty if the file did not exist. */
+  map: Map<string, string>;
+  /** True when the resolved file existed and was parsed. */
+  found: boolean;
+}
+
+export function resolveApiKeysFilePath(explicitPath?: string): string {
+  if (explicitPath) return explicitPath;
+  if (process.env['YUKI_API_KEYS_FILE']) return process.env['YUKI_API_KEYS_FILE'];
+  const userPath = join(homedir(), '.yuki', 'api-keys.json');
+  if (existsSync(userPath)) return userPath;
+  return 'api-keys.json';
+}
+
+export function loadApiKeysFile(explicitPath?: string): LoadedApiKeys {
+  const path = resolveApiKeysFilePath(explicitPath);
+  const map = new Map<string, string>();
+  if (!existsSync(path)) {
+    return { path, map, found: false };
+  }
+  const raw = JSON.parse(readFileSync(path, 'utf-8')) as Record<string, string>;
+  for (const [adminId, key] of Object.entries(raw)) {
+    if (adminId && key) map.set(adminId, key);
+  }
+  return { path, map, found: true };
+}
+
+/**
+ * Diff returned by `YukiClient.reloadApiKeys` so callers can report what changed
+ * — useful for the `reload_keys` MCP tool and for log-stderr lines.
+ */
+export interface ApiKeyReloadDiff {
+  /** Keys that did not exist before this reload. */
+  added: string[];
+  /** Keys that existed before but had a different value (session invalidated). */
+  updated: string[];
+  /** Keys that existed before but are no longer in the file (session invalidated). */
+  removed: string[];
+  /** Final size of the map after reload. */
+  total: number;
+}
+
 export class YukiClient {
   private readonly apiKey: string;
   private readonly domainId: string;
   private readonly parser: XMLParser;
 
   /**
-   * Map from administrationId → apiKey, loaded from the JSON keys file at startup.
-   * Enables per-administration authentication when querying multiple companies.
+   * Map from administrationId → apiKey. Populated from the JSON keys file at
+   * startup and mutated in place by `reloadApiKeys()` so that all tools
+   * automatically see the latest set without rebuilding the client.
    */
   private readonly apiKeyMap: Map<string, string>;
 
@@ -167,6 +227,51 @@ export class YukiClient {
   /** Number of administration-specific API keys loaded from the keys file. */
   get apiKeyCount(): number {
     return this.apiKeyMap.size;
+  }
+
+  /**
+   * Replace the in-memory `apiKeyMap` with `next`, in place. Sessions for keys
+   * that **changed** or were **removed** are evicted from the session cache so
+   * the next call re-authenticates against Yuki with the correct credentials.
+   * Sessions for keys that did not change are kept warm.
+   *
+   * Designed to be called from the `reload_keys` MCP tool after a fresh
+   * `api-keys.json` has been written (e.g. by a `create_api_key` flow in a
+   * sibling MCP server). Avoids the need to restart the MCP server.
+   *
+   * Returns a diff so callers can report what changed.
+   */
+  reloadApiKeys(next: Map<string, string>): ApiKeyReloadDiff {
+    const added: string[] = [];
+    const updated: string[] = [];
+    const removed: string[] = [];
+
+    // Detect updates + removals against the previous state
+    for (const [adminId, previousKey] of this.apiKeyMap) {
+      const nextKey = next.get(adminId);
+      if (nextKey === undefined) {
+        removed.push(adminId);
+        // Evict the cached session for the removed key
+        this.sessionCache.delete(previousKey);
+      } else if (nextKey !== previousKey) {
+        updated.push(adminId);
+        // Evict the session bound to the old key value
+        this.sessionCache.delete(previousKey);
+      }
+    }
+
+    // Detect additions
+    for (const adminId of next.keys()) {
+      if (!this.apiKeyMap.has(adminId)) added.push(adminId);
+    }
+
+    // Apply the new state in place (preserves the Map reference)
+    this.apiKeyMap.clear();
+    for (const [adminId, key] of next) {
+      this.apiKeyMap.set(adminId, key);
+    }
+
+    return { added, updated, removed, total: this.apiKeyMap.size };
   }
 
   // ── Core SOAP plumbing ──────────────────────────────────────────────────────

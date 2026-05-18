@@ -1,13 +1,14 @@
 import 'dotenv/config';
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { YukiClient } from './yuki-client.js';
+import { YukiClient, loadApiKeysFile } from './yuki-client.js';
 
 // Read tools
-import { registerAdministrationTools, registerAdministrationLookupTools } from './tools/administrations.js';
+import {
+  registerAdministrationTools,
+  registerAdministrationLookupTools,
+  registerReloadKeysTools,
+} from './tools/administrations.js';
 import { registerRelationTools } from './tools/relations.js';
 import { registerInvoiceTools } from './tools/invoices.js';
 import { registerTransactionTools } from './tools/transactions.js';
@@ -32,28 +33,21 @@ import { registerBackofficeTools } from './tools/backoffice.js';
 // The file format is a plain JSON object:
 //   { "<administrationId>": "<apiKey>", ... }
 //
-// Path resolution (first match wins):
-//   1. YUKI_API_KEYS_FILE environment variable (explicit path)
-//   2. ~/.yuki/api-keys.json  (default user-level location)
-//   3. ./api-keys.json  (local fallback for development)
+// Path resolution + parsing lives in `yuki-client.ts` (`loadApiKeysFile`) so
+// the runtime `reload_keys` tool can share the exact same behaviour.
 
-const DEFAULT_KEYS_FILE = join(homedir(), '.yuki', 'api-keys.json');
-const keysFilePath =
-  process.env['YUKI_API_KEYS_FILE'] ??
-  (existsSync(DEFAULT_KEYS_FILE) ? DEFAULT_KEYS_FILE : 'api-keys.json');
+let apiKeyMap = new Map<string, string>();
+let keysFilePath = '(none)';
 
-const apiKeyMap = new Map<string, string>();
-
-if (existsSync(keysFilePath)) {
-  try {
-    const raw = JSON.parse(readFileSync(keysFilePath, 'utf-8')) as Record<string, string>;
-    for (const [adminId, key] of Object.entries(raw)) {
-      if (adminId && key) apiKeyMap.set(adminId, key);
-    }
+try {
+  const loaded = loadApiKeysFile();
+  keysFilePath = loaded.path;
+  apiKeyMap = loaded.map;
+  if (loaded.found) {
     process.stderr.write(`[yuki-mcp] Loaded ${apiKeyMap.size} API keys from ${keysFilePath}\n`);
-  } catch (err) {
-    process.stderr.write(`[yuki-mcp] Warning: could not read API keys file at ${keysFilePath}: ${err}\n`);
   }
+} catch (err) {
+  process.stderr.write(`[yuki-mcp] Warning: could not read API keys file at ${keysFilePath}: ${err}\n`);
 }
 
 // ── Environment validation ────────────────────────────────────────────────────
@@ -81,12 +75,13 @@ const yukiClient = new YukiClient(apiKey, domainId, apiKeyMap);
 
 const server = new McpServer({
   name: 'yuki-mcp',
-  version: '1.4.0',
+  version: '1.5.0',
 });
 
 // ── Read tools ────────────────────────────────────────────────────────────────
 registerAdministrationTools(server, yukiClient);
 registerAdministrationLookupTools(server, yukiClient);
+registerReloadKeysTools(server, yukiClient);
 registerRelationTools(server, yukiClient);
 registerInvoiceTools(server, yukiClient);
 registerTransactionTools(server, yukiClient);
@@ -118,6 +113,6 @@ const keyInfo =
       : 'no API keys configured';
 
 process.stderr.write(
-  `[yuki-mcp] Server started — 30 tools registered. ` +
+  `[yuki-mcp] Server started — 31 tools registered. ` +
     `Domain ID: ${domainId || '(none)'} — ${keyInfo}\n`,
 );
