@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-05-25
+
+### Added
+
+- `license`, `author`, `keywords`, and `engines.node` (`>=20`) fields in
+  `package.json` for better npm discoverability and to make the published
+  package's runtime requirements explicit (consistent with the README's
+  "Node.js 20+" prerequisite).
+- README section **About CodeMill Solutions** introducing the maintainer
+  and linking to the company website, LinkedIn, and GitHub organisation.
+- Top-level **License** section in the README pointing at `LICENSE`.
+
+### Changed
+
+- Dependency housekeeping — bumped to the latest non-breaking versions
+  and resolved all transitive `npm audit` advisories (was 6, now 0):
+  - `@modelcontextprotocol/sdk` `^1.10.1` → `^1.29.0`
+  - `axios` `^1.7.9` → `^1.16.1`
+  - `dotenv` `^16.4.7` → `^16.6.1`
+  - `fast-xml-parser` `^5.5.8` → `^5.8.0`
+  - `zod` `^3.24.1` → `^3.25.76`
+  - `@types/node` `^22.10.10` → `^22.19.19`
+  - `prettier` `^3.8.1` → `^3.8.3`
+  - `tsx` `^4.19.2` → `^4.22.3`
+  - `typescript` `^5.7.3` → `^5.9.3`
+- Server version string in `src/index.ts` bumped from `1.5.0` to `1.5.1`
+  so the `McpServer` handshake reports the published package version.
+
 ## [1.5.0] - 2026-05-18
 
 ### Added

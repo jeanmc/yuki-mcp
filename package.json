@@ -1,7 +1,25 @@
 {
   "name": "@codemill-solutions/yuki-mcp",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "MCP server for the Yuki accounting SOAP API",
+  "license": "MIT",
+  "author": "CodeMill Solutions B.V.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "yuki",
+    "yukiworks",
+    "accounting",
+    "boekhouden",
+    "soap",
+    "ai",
+    "agent",
+    "anthropic",
+    "claude"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CodeMill-Solutions/yuki-mcp.git"
@@ -30,16 +48,16 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
-    "@modelcontextprotocol/sdk": "^1.10.1",
-    "axios": "^1.7.9",
-    "dotenv": "^16.4.7",
-    "fast-xml-parser": "^5.5.8",
-    "zod": "^3.24.1"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "axios": "^1.16.1",
+    "dotenv": "^16.6.1",
+    "fast-xml-parser": "^5.8.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^22.10.10",
-    "prettier": "^3.8.1",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "@types/node": "^22.19.19",
+    "prettier": "^3.8.3",
+    "tsx": "^4.22.3",
+    "typescript": "^5.9.3"
   }
 }

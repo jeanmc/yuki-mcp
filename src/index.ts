@@ -75,7 +75,7 @@ const yukiClient = new YukiClient(apiKey, domainId, apiKeyMap);
 
 const server = new McpServer({
   name: 'yuki-mcp',
-  version: '1.5.0',
+  version: '1.5.1',
 });
 
 // ── Read tools ────────────────────────────────────────────────────────────────
