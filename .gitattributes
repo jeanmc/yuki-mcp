@@ -1,0 +1,11 @@
+# Normalise les fins de ligne pour eviter les diffs fantomes entre Windows et Linux.
+* text=auto
+
+# Les hooks sont executes par le sh fourni avec Git for Windows : un script en
+# CRLF echoue avec "bad interpreter". Ils doivent rester en LF.
+.githooks/* text eol=lf
+
+# Binaires
+*.png binary
+*.jpg binary
+*.pdf binary

@@ -1,6 +1,6 @@
 # yuki-mcp
 
-A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that connects AI agents to [Yuki](https://www.yukiworks.nl) accounting via Yuki's SOAP API.
+A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that connects AI agents to [Yuki](https://www.yukiworks.be) accounting via Yuki's SOAP API.
 
 Built with Node.js, TypeScript, and [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk).
 
@@ -27,6 +27,32 @@ Then add it to your MCP host configuration (e.g. `claude_desktop_config.json`):
     }
   }
 }
+```
+
+---
+
+## Fork configuration (Belgium, read-only by default)
+
+This fork differs from upstream in two deliberate ways.
+
+**Endpoint defaults to Belgium.** `YUKI_BASE_URL` defaults to
+`https://api.yukiworks.be/ws/`. Set it to `https://api.yukiworks.nl/ws/` for a Dutch
+administration.
+
+> VAT codes and GL account numbers are country-specific. Pointing a Belgian
+> administration at the `.nl` host does not raise an error, it produces wrong bookings.
+
+**Write tools are disabled by default.** `process_journal`, `process_sales_invoice`,
+`process_purchase_invoice`, `upsert_contact` and the `upload_document` tools post into live
+client accounting records. They are only registered when `YUKI_ENABLE_WRITE_TOOLS=true`.
+Leave it unset for reading and reporting; enable it on a separate instance when you
+actually intend to write.
+
+The startup line on stderr states which endpoint is in use and whether write tools are
+active, so a misconfiguration is visible immediately:
+
+```
+[yuki-mcp] Server started. Endpoint: https://api.yukiworks.be/ws/ (default) | Write tools: disabled (read-only) | Domain ID: (none) | 3 per-admin keys loaded
 ```
 
 ---
@@ -311,10 +337,10 @@ Design agent workflows to fetch broad lists once and reference them from the age
 | `No API key found for administration …` | The `administrationId` passed to the tool is not in the loaded keys file — check `YUKI_API_KEYS_FILE` |
 | `SOAP Fault: Administration not found` | Wrong `administrationId` — run `get_administrations` to get the correct GUID |
 | `Journal entries do not balance` | Amounts in `process_journal` don't sum to 0 — check debit/credit signs |
-| `HTTP 500 from api.yukiworks.nl` | Usually a wrong XML namespace or malformed `xmlDoc` — check the WSDL at `https://api.yukiworks.nl/ws/{Service}.asmx?wsdl` |
+| `HTTP 500 from api.yukiworks.be` | Usually a wrong XML namespace or malformed `xmlDoc` — check the WSDL at `https://api.yukiworks.be/ws/{Service}.asmx?wsdl` |
 | `File does not appear to be a PDF` | The file at `filePath` does not start with the `%PDF` magic bytes — check you're pointing at a valid PDF |
 | `File not found` | `filePath` passed to `upload_document_from_path` does not exist or is inaccessible |
-| `Network error` | No connectivity to `api.yukiworks.nl` — requests time out after 30 seconds |
+| `Network error` | No connectivity to `api.yukiworks.be` — requests time out after 30 seconds |
 
 ---
 

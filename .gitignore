@@ -53,3 +53,28 @@ Thumbs.db
 
 # Claude
 .claude
+
+# ── Identifiants : ne JAMAIS committer ────────────────────────────────────────
+# .env est deja ignore plus haut ; on couvre toutes ses variantes.
+.env
+.env.*
+!.env.example
+
+# Fichier de cles par administration. Le README mentionne ./api-keys.json comme
+# emplacement de repli local : sans cette regle, il partirait sur GitHub.
+api-keys.json
+*api-keys*.json
+.yuki/
+.yuki_session.json
+
+# Cles et certificats
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+
+# Exports comptables clients : ce depot est du code, pas des donnees clients.
+*.csv
+*.xlsx
+*.xls

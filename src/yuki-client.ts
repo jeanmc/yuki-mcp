@@ -4,8 +4,19 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
-// Confirmed via WSDL inspection of api.yukiworks.nl
-const YUKI_BASE_URL = 'https://api.yukiworks.nl/ws/';
+// Yuki exposes the same methods for Belgium (.be) and the Netherlands (.nl);
+// only the host differs. Defaults to .be for this fork.
+//
+// IMPORTANT: VAT codes and GL account numbers are country-specific. Pointing a
+// Belgian administration at the .nl host (or vice versa) does not fail loudly —
+// it produces wrong bookings. Set YUKI_BASE_URL deliberately per environment.
+//
+// Confirmed via WSDL inspection of api.yukiworks.nl / api.yukiworks.be
+const DEFAULT_YUKI_BASE_URL = 'https://api.yukiworks.be/ws/';
+const YUKI_BASE_URL = (process.env.YUKI_BASE_URL || DEFAULT_YUKI_BASE_URL).replace(
+  /\/?$/,
+  '/',
+);
 const YUKI_NAMESPACE = 'http://www.theyukicompany.com/';
 
 // Tags that should always be treated as arrays even when there is only one element

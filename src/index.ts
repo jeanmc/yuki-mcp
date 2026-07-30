@@ -90,10 +90,25 @@ registerAccountingExtendedTools(server, yukiClient);
 registerAccountingInfoTools(server, yukiClient);
 
 // ── Write tools ───────────────────────────────────────────────────────────────
-registerInvoiceWriteTools(server, yukiClient);
-registerJournalWriteTools(server, yukiClient);
-registerContactWriteTools(server, yukiClient);
-registerDocumentTools(server, yukiClient);
+//
+// These tools post into a client's live accounting records (journal entries,
+// sales/purchase invoices, contacts, archived documents). An agent booking an
+// entry into a client file is an incident, not a convenience, so they stay off
+// unless explicitly enabled.
+//
+// Enable with YUKI_ENABLE_WRITE_TOOLS=true, ideally on a dedicated instance
+// rather than the one used for day-to-day reading.
+
+const enableWriteTools = /^(1|true|yes|on)$/i.test(
+  process.env['YUKI_ENABLE_WRITE_TOOLS'] ?? '',
+);
+
+if (enableWriteTools) {
+  registerInvoiceWriteTools(server, yukiClient);
+  registerJournalWriteTools(server, yukiClient);
+  registerContactWriteTools(server, yukiClient);
+  registerDocumentTools(server, yukiClient);
+}
 
 // ── Backoffice tools ──────────────────────────────────────────────────────────
 registerBackofficeTools(server, yukiClient);
@@ -112,7 +127,11 @@ const keyInfo =
       ? 'single YUKI_API_KEY'
       : 'no API keys configured';
 
+const baseUrl = process.env['YUKI_BASE_URL'] || 'https://api.yukiworks.be/ws/ (default)';
+
 process.stderr.write(
-  `[yuki-mcp] Server started — 31 tools registered. ` +
-    `Domain ID: ${domainId || '(none)'} — ${keyInfo}\n`,
+  `[yuki-mcp] Server started. ` +
+    `Endpoint: ${baseUrl} | ` +
+    `Write tools: ${enableWriteTools ? 'ENABLED' : 'disabled (read-only)'} | ` +
+    `Domain ID: ${domainId || '(none)'} | ${keyInfo}\n`,
 );
